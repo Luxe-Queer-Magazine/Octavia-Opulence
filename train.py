@@ -148,26 +148,35 @@ def main():
     # Prepare model for k-bit training
     model = prepare_model_for_kbit_training(model)
     
-    # Configure LoRA
-    lora_config = LoraConfig(
-        r=training_config.lora.get("r", 16),
-        lora_alpha=training_config.lora.get("alpha", 32),
-        lora_dropout=training_config.lora.get("dropout", 0.05),
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=training_config.lora.get("target_modules", ["q_proj", "v_proj"]),
-    )
-    
-    # Apply LoRA to model
-    model = get_peft_model(model, lora_config)
-    
-    # Load dataset
-    data_files = {"train": args.data_path}
-    if args.eval_data_path:
-        data_files["validation"] = args.eval_data_path
-    
-    dataset = load_dataset("json", data_files=data_files)
-    
+
+
+# Configure LoRA - Get necessary values BUT OMIT target_modules for Gemma
+lora_r = training_config.lora.get("r", 16)
+lora_alpha = training_config.lora.get("alpha", 32)
+lora_dropout = training_config.lora.get("dropout", 0.05)
+# DO NOT get target_modules from config here if using Unsloth auto-detect
+
+lora_config = LoraConfig(
+    r=lora_r,
+    lora_alpha=lora_alpha,
+    lora_dropout=lora_dropout,
+    bias="none",
+    task_type="CAUSAL_LM",
+    # **** REMOVE THE target_modules LINE ENTIRELY ****
+    # Let Unsloth automatically find the correct layers for Gemma
+)
+
+# Apply LoRA to model (This part is correct)
+from unsloth import FastLanguageModel
+
+model = FastLanguageModel.get_peft_model(
+    model,
+    lora_config, # Pass the config object created WITHOUT target_modules
+)
+
+# Load dataset (this part was after PEFT application)
+# dataset = load_dataset("json", data_files=data_files)
+# ... rest of your script ...
     # Preprocess dataset
     tokenized_dataset = dataset.map(
         lambda examples: preprocess_function(examples, tokenizer),
