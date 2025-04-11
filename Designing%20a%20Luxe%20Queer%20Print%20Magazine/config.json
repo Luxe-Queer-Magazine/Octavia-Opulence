@@ -1,0 +1,28 @@
+{
+  "architectures": [
+    "MistralForCausalLM"
+  ],
+  "model_type": "mistral",
+  "torch_dtype": "float16",
+  "transformers_version": "4.38.0",
+  "vocab_size": 32000,
+  "hidden_size": 4096,
+  "intermediate_size": 14336,
+  "num_hidden_layers": 32,
+  "num_attention_heads": 32,
+  "num_key_value_heads": 8,
+  "hidden_act": "silu",
+  "max_position_embeddings": 4096,
+  "rms_norm_eps": 1e-05,
+  "rope_theta": 10000.0,
+  "sliding_window": 4096,
+  "use_cache": true,
+  "pad_token_id": null,
+  "bos_token_id": 1,
+  "eos_token_id": 2,
+  "tie_word_embeddings": false,
+  "rope_scaling": {
+    "type": "linear",
+    "factor": 2.0
+  }
+}

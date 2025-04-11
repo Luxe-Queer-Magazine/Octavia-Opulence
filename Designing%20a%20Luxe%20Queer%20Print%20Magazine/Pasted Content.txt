@@ -1,0 +1,294 @@
+// subscription-webhook.js - Handle Stripe webhook events
+export async function handler(event, context) {
+  const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  const signature = event.headers['stripe-signature'];
+  const { data, error } = await supabase.from('profiles').select('*');
+  
+  try {
+    const stripeEvent = stripe.webhooks.constructEvent(
+      event.body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+    
+    // Handle different event types
+    switch (stripeEvent.type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+        await handleSubscriptionChange(stripeEvent.data.object);
+        break;
+      case 'customer.subscription.deleted':
+        await handleSubscriptionCancellation(stripeEvent.data.object);
+        break;
+      case 'invoice.payment_succeeded':
+        await handleSuccessfulPayment(stripeEvent.data.object);
+        break;
+      case 'invoice.payment_failed':
+        await handleFailedPayment(stripeEvent.data.object);
+        break;
+    }
+    
+    return { statusCode: 200, body: JSON.stringify({ received: true }) };
+  } catch (err) {
+    return { 
+      statusCode: 400, 
+      body: JSON.stringify({ error: `Webhook Error: ${err.message}` }) 
+    };
+  }
+}
+
+// tier-access.js - Check if user has access to content
+export async function handler(event, context) {
+  const { user_id, ghost_post_id } = JSON.parse(event.body);
+  
+  // Get user's subscription tier
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('subscription_tier, subscription_status')
+    .eq('id', user_id)
+    .single();
+    
+  if (profileError || !profile) {
+    return { statusCode: 404, body: JSON.stringify({ error: 'User not found' }) };
+  }
+  
+  if (profile.subscription_status !== 'active') {
+    return { statusCode: 403, body: JSON.stringify({ error: 'Subscription not active' }) };
+  }
+  
+  // Get content access requirements
+  const { data: contentAccess, error: contentError } = await supabase
+    .from('content_access')
+    .select('required_tier')
+    .eq('ghost_post_id', ghost_post_id)
+    .single();
+    
+  if (contentError) {
+    // If no specific rule, assume public content
+    return { statusCode: 200, body: JSON.stringify({ has_access: true }) };
+  }
+  
+  // Check tier access (using tier hierarchy)
+  const tiers = ['none', 'digital-devotee', 'print-provocateur', 'opulence-oracle', 'category-excellence'];
+  const userTierIndex = tiers.indexOf(profile.subscription_tier);
+  const requiredTierIndex = tiers.indexOf(contentAccess.required_tier);
+  
+  const hasAccess = userTierIndex >= requiredTierIndex;
+  
+  return { 
+    statusCode: 200, 
+    body: JSON.stringify({ 
+      has_access: hasAccess,
+      user_tier: profile.subscription_tier,
+      required_tier: contentAccess.required_tier
+    }) 
+  };
+}
+
+// fluid-subscription.js - Handle fluid subscription changes
+export async function handler(event, context) {
+  const { user_id, action, days, target_user_id, reason } = JSON.parse(event.body);
+  
+  switch (action) {
+    case 'bank':
+      // Bank subscription days
+      const { data, error } = await supabase
+        .from('subscription_bank')
+        .insert({
+          user_id,
+          banked_days: days,
+          reason,
+          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year expiry
+        });
+      
+      if (error) {
+        return { statusCode: 400, body: JSON.stringify({ error: error.message }) };
+      }
+      
+      return { statusCode: 200, body: JSON.stringify({ success: true, data }) };
+      
+    case 'gift':
+      // Gift subscription days to another user
+      // First check if user has enough banked days
+      const { data: bankData, error: bankError } = await supabase
+        .from('subscription_bank')
+        .select('id, banked_days')
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: true });
+        
+      if (bankError) {
+        return { statusCode: 400, body: JSON.stringify({ error: bankError.message }) };
+      }
+      
+      let remainingDays = days;
+      let usedBankEntries = [];
+      
+      for (const entry of bankData) {
+        if (remainingDays <= 0) break;
+        
+        if (entry.banked_days <= remainingDays) {
+          // Use entire entry
+          usedBankEntries.push({
+            id: entry.id,
+            used: entry.banked_days
+          });
+          remainingDays -= entry.banked_days;
+        } else {
+          // Use partial entry
+          usedBankEntries.push({
+            id: entry.id,
+            used: remainingDays
+          });
+          remainingDays = 0;
+        }
+      }
+      
+      if (remainingDays > 0) {
+        return { 
+          statusCode: 400, 
+          body: JSON.stringify({ 
+            error: `Not enough banked days. Requested: ${days}, Available: ${days - remainingDays}` 
+          }) 
+        };
+      }
+      
+      // Process the gift
+      // 1. Deduct from bank
+      for (const entry of usedBankEntries) {
+        if (entry.used === bankData.find(b => b.id === entry.id).banked_days) {
+          // Delete entire entry
+          await supabase
+            .from('subscription_bank')
+            .delete()
+            .eq('id', entry.id);
+        } else {
+          // Update entry
+          await supabase
+            .from('subscription_bank')
+            .update({ banked_days: bankData.find(b => b.id === entry.id).banked_days - entry.used })
+            .eq('id', entry.id);
+        }
+      }
+      
+      // 2. Add to target user's subscription
+      const { data: targetProfile, error: targetError } = await supabase
+        .from('profiles')
+        .select('subscription_end_date')
+        .eq('id', target_user_id)
+        .single();
+        
+      if (targetError) {
+        return { statusCode: 404, body: JSON.stringify({ error: 'Target user not found' }) };
+      }
+      
+      let newEndDate;
+      if (targetProfile.subscription_end_date) {
+        newEndDate = new Date(targetProfile.subscription_end_date);
+        newEndDate.setDate(newEndDate.getDate() + days);
+      } else {
+        newEndDate = new Date();
+        newEndDate.setDate(newEndDate.getDate() + days);
+      }
+      
+      await supabase
+        .from('profiles')
+        .update({ 
+          subscription_end_date: newEndDate,
+          subscription_status: 'active'
+        })
+        .eq('id', target_user_id);
+      
+      return { statusCode: 200, body: JSON.stringify({ success: true }) };
+      
+    default:
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ error: 'Invalid action' }) 
+      };
+  }
+}
+
+// pod-management.js - Handle subscription pod operations
+export async function handler(event, context) {
+  const { action, pod_id, user_id, pod_name, tier_id } = JSON.parse(event.body);
+  
+  switch (action) {
+    case 'create':
+      // Create new pod
+      const { data: podData, error: podError } = await supabase
+        .from('subscription_pods')
+        .insert({
+          pod_name,
+          tier_id,
+          primary_member_id: user_id
+        })
+        .select();
+        
+      if (podError) {
+        return { statusCode: 400, body: JSON.stringify({ error: podError.message }) };
+      }
+      
+      // Add creator as first member
+      const { error: memberError } = await supabase
+        .from('pod_members')
+        .insert({
+          pod_id: podData[0].id,
+          user_id,
+          role: 'admin'
+        });
+        
+      if (memberError) {
+        return { statusCode: 400, body: JSON.stringify({ error: memberError.message }) };
+      }
+      
+      return { statusCode: 200, body: JSON.stringify({ success: true, pod: podData[0] }) };
+      
+    case 'invite':
+      // Check if pod exists and user is admin
+      const { data: pod, error: podCheckError } = await supabase
+        .from('subscription_pods')
+        .select('*')
+        .eq('id', pod_id)
+        .single();
+        
+      if (podCheckError) {
+        return { statusCode: 404, body: JSON.stringify({ error: 'Pod not found' }) };
+      }
+      
+      const { data: adminCheck, error: adminCheckError } = await supabase
+        .from('pod_members')
+        .select('role')
+        .eq('pod_id', pod_id)
+        .eq('user_id', user_id)
+        .single();
+        
+      if (adminCheckError || adminCheck.role !== 'admin') {
+        return { statusCode: 403, body: JSON.stringify({ error: 'Not authorized to invite members' }) };
+      }
+      
+      // Count existing members
+      const { data: memberCount, error: countError } = await supabase
+        .from('pod_members')
+        .select('id', { count: 'exact' })
+        .eq('pod_id', pod_id);
+        
+      if (countError) {
+        return { statusCode: 400, body: JSON.stringify({ error: countError.message }) };
+      }
+      
+      // Check if pod is full (max 5 members)
+      if (memberCount.length >= 5) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Pod is full (max 5 members)' }) };
+      }
+      
+      // TODO: Send invitation email to new member
+      
+      return { statusCode: 200, body: JSON.stringify({ success: true }) };
+      
+    default:
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ error: 'Invalid action' }) 
+      };
+  }
+}

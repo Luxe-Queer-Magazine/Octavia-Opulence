@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{meta_title}}</title>
+    <meta name="description" content="{{meta_description}}">
+    
+    <!-- Custom Fonts -->
+    <link rel="stylesheet" href="https://use.typekit.net/abc1234.css"> <!-- Placeholder for actual font service -->
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{asset "css/luxe_queer_theme.css"}}">
+</head>
+<body class="{{body_class}}">
+    <header class="site-header">
+        <div class="container">
+            <a href="{{@site.url}}" class="site-logo">
+                <img src="{{asset "images/luxe-queer-logo.png"}}" alt="{{@site.title}}">
+            </a>
+            
+            <nav class="site-nav">
+                {{navigation}}
+            </nav>
+            
+            <div class="site-actions">
+                <a href="#/portal/" class="subscribe-button">Subscribe</a>
+                <button class="search-button">Search</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="site-main">
+        {{#is "home"}}
+        <section class="hero">
+            {{#get "posts" filter="featured:true" limit="1" include="tags,authors"}}
+                {{#foreach posts}}
+                <div class="hero-image-container">
+                    <img src="{{feature_image}}" alt="{{title}}" class="hero-image">
+                </div>
+                <div class="hero-content">
+                    <div class="hero-tags">
+                        {{#primary_tag}}
+                        <span class="hero-tag">{{name}}</span>
+                        {{/primary_tag}}
+                        <span class="hero-tag featured-tag">Featured</span>
+                    </div>
+                    <h1 class="hero-title">{{title}}</h1>
+                    <p class="hero-excerpt">{{excerpt}}</p>
+                    <div class="hero-meta">
+                        {{#primary_author}}
+                        <span class="hero-author">By {{name}}</span>
+                        {{/primary_author}}
+                        <span class="hero-date">{{date format="MMMM DD, YYYY"}}</span>
+                    </div>
+                    <a href="{{url}}" class="hero-link">Read More</a>
+                </div>
+                {{/foreach}}
+            {{/get}}
+        </section>
+
+        <section class="article-grid-container">
+            <div class="container">
+                <h2 class="section-title">Latest Articles</h2>
+                <div class="article-grid">
+                    {{#get "posts" filter="featured:false" limit="6" include="tags,authors"}}
+                        {{#foreach posts}}
+                        <article class="article-card">
+                            <a href="{{url}}" class="article-image-link">
+                                <img src="{{feature_image}}" alt="{{title}}" class="article-image">
+                            </a>
+                            <div class="article-content">
+                                {{#primary_tag}}
+                                <span class="article-tag">{{name}}</span>
+                                {{/primary_tag}}
+                                <h3 class="article-title"><a href="{{url}}">{{title}}</a></h3>
+                                <p class="article-excerpt">{{excerpt}}</p>
+                                <div class="article-meta">
+                                    {{#primary_author}}
+                                    <span class="article-author">By {{name}}</span>
+                                    {{/primary_author}}
+                                    <span class="article-date">{{date format="MMMM DD, YYYY"}}</span>
+                                </div>
+                            </div>
+                        </article>
+                        {{/foreach}}
+                    {{/get}}
+                </div>
+            </div>
+        </section>
+
+        <!-- Fashion Section -->
+        <section class="section-highlight">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">FASHION</h2>
+                    <a href="/tag/fashion/" class="section-link">View All</a>
+                </div>
+                <div class="section-articles">
+                    {{#get "posts" filter="tag:fashion" limit="3" include="tags,authors"}}
+                        {{#foreach posts}}
+                        <article class="article-card">
+                            <a href="{{url}}" class="article-image-link">
+                                <img src="{{feature_image}}" alt="{{title}}" class="article-image">
+                            </a>
+                            <div class="article-content">
+                                {{#primary_tag}}
+                                <span class="article-tag">{{name}}</span>
+                                {{/primary_tag}}
+                                <h3 class="article-title"><a href="{{url}}">{{title}}</a></h3>
+                                <p class="article-excerpt">{{excerpt}}</p>
+                                <div class="article-meta">
+                                    {{#primary_author}}
+                                    <span class="article-author">By {{name}}</span>
+                                    {{/primary_author}}
+                                    <span class="article-date">{{date format="MMMM DD, YYYY"}}</span>
+                                </div>
+                            </div>
+                        </article>
+                        {{/foreach}}
+                    {{/get}}
+                </div>
+            </div>
+        </section>
+
+        <!-- Art Section -->
+        <section class="section-highlight">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">ART</h2>
+                    <a href="/tag/art/" class="section-link">View All</a>
+                </div>
+                <div class="section-articles">
+                    {{#get "posts" filter="tag:art" limit="3" include="tags,authors"}}
+                        {{#foreach posts}}
+                        <article class="article-card">
+                            <a href="{{url}}" class="article-image-link">
+                                <img src="{{feature_image}}" alt="{{title}}" class="article-image">
+                            </a>
+                            <div class="article-content">
+                                {{#primary_tag}}
+                                <span class="article-tag">{{name}}</span>
+                                {{/primary_tag}}
+                                <h3 class="article-title"><a href="{{url}}">{{title}}</a></h3>
+                                <p class="article-excerpt">{{excerpt}}</p>
+                                <div class="article-meta">
+                                    {{#primary_author}}
+                                    <span class="article-author">By {{name}}</span>
+                                    {{/primary_author}}
+                                    <span class="article-date">{{date format="MMMM DD, YYYY"}}</span>
+                                </div>
+                            </div>
+                        </article>
+                        {{/foreach}}
+                    {{/get}}
+                </div>
+            </div>
+        </section>
+
+        <!-- Newsletter Signup -->
+        <section class="newsletter">
+            <div class="container">
+                <h2 class="newsletter-title">Subscribe to Luxe Queer</h2>
+                <p class="newsletter-description">Stay updated with the latest in fashion, art, culture, travel, technology, and luxury from a queer perspective.</p>
+                <div class="newsletter-form">
+                    <form data-members-form="subscribe">
+                        <input type="email" data-members-email placeholder="Your email address" required class="newsletter-input">
+                        <button type="submit" class="newsletter-button">Subscribe</button>
+                    </form>
+                </div>
+                <p class="newsletter-privacy">By subscribing, you agree to our Privacy Policy and consent to receive updates from Luxe Queer.</p>
+            </div>
+        </section>
+        {{/is}}
+
+        {{#is "post"}}
+        <article class="article">
+            <div class="container">
+                <header class="article-header">
+                    <div class="article-tags">
+                        {{#primary_tag}}
+                        <span class="article-tag primary-tag">{{name}}</span>
+                        {{/primary_tag}}
+                        {{#tags}}
+                        {{#unless isFirst}}
+                        <span class="article-tag">{{name}}</span>
+                        {{/unless}}
+                        {{/tags}}
+                    </div>
+                    
+                    <h1 class="article-title-large">{{title}}</h1>
+                    
+                    {{#if custom_excerpt}}
+                    <p class="article-subtitle">{{custom_excerpt}}</p>
+                    {{/if}}
+                    
+                    <div class="article-meta-box">
+                        {{#primary_author}}
+                        <img src="{{profile_image}}" alt="{{name}}" class="article-author-image">
+                        <div class="article-author-info">
+                            <span class="article-author-name">By {{name}}</span>
+                            <span class="article-date">{{date format="MMMM DD, YYYY"}}</span>
+                        </div>
+                        {{/primary_author}}
+                    </div>
+                    
+                    {{#if feature_image}}
+                    <figure class="article-featured-image-container">
+                        <img src="{{feature_image}}" alt="{{title}}" class="article-featured-image">
+                        {{#if feature_image_caption}}
+                        <figcaption>{{feature_image_caption}}</figcaption>
+                        {{/if}}
+                    </figure>
+                    {{/if}}
+                </header>
+                
+                <div class="article-content">
+                    {{content}}
+                </div>
+                
+                <footer class="article-footer">
+                    <div class="article-share">
+                        <span class="share-text">Share this article:</span>
+                        <a href="https://twitter.com/intent/tweet?url={{url absolute="true"}}&text={{title}}" class="share-link twitter" target="_blank" rel="noopener">Twitter</a>
+                        <a href="https://www.facebook.com/sharer/sharer.php?u={{url absolute="true"}}" class="share-link facebook" target="_blank" rel="noopener">Facebook</a>
+                        <a href="https://www.linkedin.com/shareArticle?mini=true&url={{url absolute="true"}}&title={{title}}" class="share-link linkedin" target="_blank" rel="noopener">LinkedIn</a>
+                    </div>
+                    
+                    <div class="article-tags-list">
+                        <span class="tags-text">Tags:</span>
+                        {{#tags}}
+                        <a href="{{url}}" class="tag-link">{{name}}</a>
+                        {{/tags}}
+                    </div>
+                </footer>
+                
+                <section class="related-articles">
+                    <h2 class="related-title">Related Articles</h2>
+                    <div class="related-grid">
+                        {{#get "posts" filter="tags:[{{primary_tag.slug}}]+id:-{{id}}" limit="3" include="tags,authors"}}
+                            {{#foreach posts}}
+                            <article class="article-card">
+                                <a href="{{url}}" class="article-image-link">
+                                    <img src="{{feature_image}}" alt="{{title}}" class="article-image">
+                                </a>
+                                <div class="article-content">
+                                    {{#primary_tag}}
+                                    <span class="article-tag">{{name}}</span>
+                                    {{/primary_tag}}
+                                    <h3 class="article-title"><a href="{{url}}">{{title}}</a></h3>
+                                    <p class="article-excerpt">{{excerpt}}</p>
+                                </div>
+                            </article>
+                            {{/foreach}}
+                        {{/get}}
+                    </div>
+                </section>
+            </div>
+        </article>
+        {{/is}}
+
+        {{#is "tag"}}
+        <section class="tag-header">
+            <div class="container">
+                <h1 class="tag-title">{{tag.name}}</h1>
+                {{#if tag.description}}
+                <p class="tag-description">{{tag.description}}</p>
+                {{/if}}
+            </div>
+        </section>
+        
+        <section class="article-grid-container">
+            <div class="container">
+                <div class="article-grid">
+                    {{#foreach posts}}
+                    <article class="article-card">
+                        <a href="{{url}}" class="article-image-link">
+                            <img src="{{feature_image}}" alt="{{title}}" class="article-image">
+                        </a>
+                        <div class="article-content">
+                            {{#primary_tag}}
+                            <span class="article-tag">{{name}}</span>
+                            {{/primary_tag}}
+                            <h3 class="article-title"><a href="{{url}}">{{title}}</a></h3>
+                            <p class="article-excerpt">{{excerpt}}</p>
+                            <div class="article-meta">
+                                {{#primary_author}}
+                                <span class="article-author">By {{name}}</span>
+                                {{/primary_author}}
+                                <span class="article-date">{{date format="MMMM DD, YYYY"}}</span>
+                            </div>
+                        </div>
+                    </article>
+                    {{/foreach}}
+                </div>
+                
+                <div class="pagination">
+                    {{pagination}}
+                </div>
+            </div>
+        </section>
+        {{/is}}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <img src="{{asset "images/luxe-queer-logo-white.png"}}" alt="{{@site.title}}" class="footer-logo">
+                
+                <nav class="footer-nav">
+                    {{navigation}}
+                </nav>
+                
+                <div class="footer-social">
+                    <a href="https://twitter.com/luxequeer" target="_blank" rel="noopener" class="social-link">Twitter</a>
+                    <a href="https://instagram.com/luxequeer" target="_blank" rel="noopener" class="social-link">Instagram</a>
+                    <a href="https://facebook.com/luxequeer" target="_blank" rel="noopener" class="social-link">Facebook</a>
+                    <a href="https://pinterest.com/luxequeer" target="_blank" rel="noopener" class="social-link">Pinterest</a>
+                </div>
+                
+                <div class="footer-subscribe">
+                    <h3 class="footer-subscribe-title">Subscribe to our Newsletter</h3>
+                    <form data-members-form="subscribe" class="footer-subscribe-form">
+                        <input type="email" data-members-email placeholder="Your email address" required class="footer-subscribe-input">
+                        <button type="submit" class="footer-subscribe-button">Subscribe</button>
+                    </form>
+       
+(Content truncated due to size limit. Use line ranges to read in chunks)

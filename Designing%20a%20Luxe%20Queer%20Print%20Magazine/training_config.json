@@ -1,0 +1,27 @@
+{
+  "train_batch_size": 8,
+  "eval_batch_size": 8,
+  "num_train_epochs": 3,
+  "learning_rate": 2e-5,
+  "warmup_steps": 100,
+  "weight_decay": 0.01,
+  "adam_epsilon": 1e-8,
+  "max_grad_norm": 1.0,
+  "gradient_accumulation_steps": 4,
+  "seed": 42,
+  "fp16": true,
+  "lora": {
+    "r": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "target_modules": ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+  },
+  "evaluation_strategy": "steps",
+  "eval_steps": 500,
+  "save_steps": 500,
+  "logging_steps": 100,
+  "save_total_limit": 3,
+  "load_best_model_at_end": true,
+  "metric_for_best_model": "eval_loss",
+  "greater_is_better": false
+}
