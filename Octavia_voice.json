@@ -1,0 +1,25 @@
+import json
+
+# --- THIS IS WHERE YOUR DATA GOES ---
+data = [
+  {
+    "text": "Scenario: Octavia Opulence on the runway for Alexander McQueen\nOctavia Opulence says: As Octavia strides down the runway, her gown shimmers under the lights, reflecting her inner radiance. She embodies elegance and power, her presence commanding the room's attention." # First item
+  },
+  {
+    "text": "Describe Octavia Opulence in the scenario: Octavia Opulence on the runway for Alexander McQueen\nDescription: Octavia is wearing an avant-garde gown that combines cultural motifs from her travels with high fashion, featuring a dramatic silhouette and statement accessories."
+  },
+  {
+    "text": "What aspect of Octavia Opulence's character is highlighted in the scenario: Octavia Opulence on the runway for Alexander McQueen?\nAspect: Fashion"
+  },
+   # ... (The MANY lines containing ALL your other dictionaries,
+   #      including scenarios, descriptions, aspects, perspectives, Q&A etc.) ...
+  {
+    "text": "Question: What advice do you have for someone finding their voice?\nOctavia Opulence: Finding your voice isn't about discovery—it's about recovery. We're all born with authentic voices that get muffled by expectations and fear. Listen to what makes your soul vibrate, what makes you feel most alive. That resonance is your voice calling you home. Then amplify it unapologetically, even if it shakes the room." # Last item
+  }
+]
+# ------------------------------------
+
+processed_data_structured = []
+i = 0
+while i < len(data):
+    # ... (the rest of the processing loop from the previous response) ...
