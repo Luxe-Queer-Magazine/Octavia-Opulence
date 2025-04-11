@@ -1,53 +1,37 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import os
 import json
 import argparse
 import logging
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 import torch
-import transformers
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    HfArgumentParser,
     TrainingArguments,
     set_seed,
 )
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from datasets import load_dataset
+from peft import LoraConfig, prepare_model_for_kbit_training
+from unsloth import FastLanguageModel  # For Unsloth's auto-detection
 
 logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelArguments:
-    """
-    Arguments pertaining to which model/config/tokenizer we are going to fine-tune.
-    """
     base_model: str = field(
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
-    )
-    load_in_8bit: bool = field(
-        default=False,
-        metadata={"help": "Whether to load the model in 8-bit mode"}
     )
     load_in_4bit: bool = field(
         default=True,
         metadata={"help": "Whether to load the model in 4-bit mode"}
     )
-    trust_remote_code: bool = field(
-        default=False,
-        metadata={"help": "Whether to trust remote code when loading the model"}
-    )
 
 @dataclass
 class DataArguments:
-    """
-    Arguments pertaining to what data we are going to input our model for training and evaluation.
-    """
     data_path: str = field(
         metadata={"help": "Path to the training data."}
     )
@@ -58,9 +42,6 @@ class DataArguments:
 
 @dataclass
 class TrainingConfig:
-    """
-    Arguments pertaining to training configuration loaded from JSON.
-    """
     train_batch_size: int = 8
     eval_batch_size: int = 8
     num_train_epochs: int = 3
@@ -86,7 +67,6 @@ def load_training_config(config_path: str) -> TrainingConfig:
     """Load training configuration from JSON file."""
     with open(config_path, 'r') as f:
         config_dict = json.load(f)
-    
     return TrainingConfig(**config_dict)
 
 def format_instruction(example):
@@ -98,11 +78,14 @@ def format_instruction(example):
 
 def preprocess_function(examples, tokenizer):
     """Preprocess the examples for training."""
-    # Format the examples
+    fields = ["instruction", "input", "output"]
+    for field in fields:
+        if field not in examples:
+            raise KeyError(f"Dataset is missing required field: {field}")
+    
     prompts = [format_instruction({"instruction": instruction, "input": inp, "output": out}) 
                for instruction, inp, out in zip(examples["instruction"], examples["input"], examples["output"])]
     
-    # Tokenize the examples
     tokenized_examples = tokenizer(
         prompts,
         truncation=True,
@@ -110,10 +93,7 @@ def preprocess_function(examples, tokenizer):
         max_length=tokenizer.model_max_length,
         return_tensors="pt",
     )
-    
-    # Create labels (same as input_ids, as we're doing causal language modeling)
     tokenized_examples["labels"] = tokenized_examples["input_ids"].clone()
-    
     return tokenized_examples
 
 def main():
@@ -138,8 +118,7 @@ def main():
     # Load model
     model = AutoModelForCausalLM.from_pretrained(
         args.base_model,
-        load_in_8bit=False,
-        load_in_4bit=True,
+        load_in_4bit=training_config.fp16,
         torch_dtype=torch.float16,
         device_map="auto",
         trust_remote_code=True,
@@ -148,42 +127,33 @@ def main():
     # Prepare model for k-bit training
     model = prepare_model_for_kbit_training(model)
     
-
-
-# Configure LoRA - Get necessary values BUT OMIT target_modules for Gemma
-lora_r = training_config.lora.get("r", 16)
-lora_alpha = training_config.lora.get("alpha", 32)
-lora_dropout = training_config.lora.get("dropout", 0.05)
-# DO NOT get target_modules from config here if using Unsloth auto-detect
-
-lora_config = LoraConfig(
-    r=lora_r,
-    lora_alpha=lora_alpha,
-    lora_dropout=lora_dropout,
-    bias="none",
-    task_type="CAUSAL_LM",
-    # **** REMOVE THE target_modules LINE ENTIRELY ****
-    # Let Unsloth automatically find the correct layers for Gemma
-)
-
-# Apply LoRA to model (This part is correct)
-from unsloth import FastLanguageModel
-
-model = FastLanguageModel.get_peft_model(
-    model,
-    lora_config, # Pass the config object created WITHOUT target_modules
-)
-
-# Load dataset (this part was after PEFT application)
-# dataset = load_dataset("json", data_files=data_files)
-# ... rest of your script ...
-    # Preprocess dataset
-    tokenized_dataset = dataset.map(
-        lambda examples: preprocess_function(examples, tokenizer),
-        batched=True,
-        remove_columns=dataset["train"].column_names,
+    # Configure LoRA with Unsloth
+    lora_config = LoraConfig(
+        r=training_config.lora.get("r", 16),
+        lora_alpha=training_config.lora.get("alpha", 32),
+        lora_dropout=training_config.lora.get("dropout", 0.05),
+        bias="none",
+        task_type="CAUSAL_LM",
     )
-    
+    model = FastLanguageModel.get_peft_model(model, lora_config)  # Unsloth auto-detect
+
+    # Load dataset
+    try:
+        data_files = {"train": args.data_path}
+        if args.eval_data_path:
+            data_files["validation"] = args.eval_data_path
+        dataset = load_dataset("json", data_files=data_files)
+
+        # Preprocess dataset
+        tokenized_dataset = dataset.map(
+            lambda examples: preprocess_function(examples, tokenizer),
+            batched=True,
+            remove_columns=dataset["train"].column_names,
+        )
+    except Exception as e:
+        logger.error(f"Error loading or processing dataset: {e}")
+        return
+
     # Set up training arguments
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -193,7 +163,6 @@ model = FastLanguageModel.get_peft_model(
         learning_rate=training_config.learning_rate,
         warmup_steps=training_config.warmup_steps,
         weight_decay=training_config.weight_decay,
-        adam_epsilon=training_config.adam_epsilon,
         max_grad_norm=training_config.max_grad_norm,
         gradient_accumulation_steps=training_config.gradient_accumulation_steps,
         evaluation_strategy=training_config.evaluation_strategy if "validation" in tokenized_dataset else "no",
@@ -223,7 +192,6 @@ model = FastLanguageModel.get_peft_model(
     # Save model
     model.save_pretrained(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
-    
     print(f"Model saved to {args.output_dir}")
 
 if __name__ == "__main__":
